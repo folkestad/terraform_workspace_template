@@ -1,0 +1,41 @@
+#!/bin/bash
+
+#------------------------------------------------------------
+# Terraform wrapper script for easier workspace interaction
+#
+#------------------------------------------------------------
+
+_environments="production, staging, test"
+
+change_to_default_workspace () {
+  echo "cleanup"
+  export TF_WORKSPACE=default
+}
+
+print_commands () {
+  echo "Terraform wrapper script for easier terraform workspace interaction"
+  echo "> Argument \$1 is workspace and should be either:"
+  echo " * test (-var-file=env/test.tfvars is applied to command)"
+  echo " * staging (-var-file=env/staging.tfvars is applied to command)"
+  echo " * production (-var-file=env/production.tfvars is applied to command)"
+  echo "> All other arguments \$@ are passed to terraform"
+  exit 1
+}
+
+# Add cleanup function on exit
+trap change_to_default_workspace EXIT;
+
+# Check if workspace does not correspond to any of the words in _environments
+if ! echo "$_environments" | grep -qw "$1";
+then
+  print_commands;
+fi
+
+# Set workspace to environment
+export TF_WORKSPACE=$1
+# Create workspace if not exists
+terraform workspace new "$TF_WORKSPACE" || true
+# Remove workspace from arguments
+shift
+# Pass arguments to terraform along with a var-file
+terraform "$@" -var-file=env/"$TF_WORKSPACE".tfvars
